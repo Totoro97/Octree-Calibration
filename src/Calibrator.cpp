@@ -26,25 +26,57 @@ Calibrator::Calibrator(const cv::Mat &img_gray, Octree* octree, int frame_id) :
   }
 }
 
+double Calibrator::CalcCurrentF() {
+  double current_f = 0.0;
+  for (const auto &pix : visible_pixs_) {
+    Eigen::Vector3d dir = pix(0) * x_axis_ + pix(1) * y_axis_ + scale_ratio_ * z_axis_;
+    dir /= dir.norm();
+    current_f += octree_->CalcForce(pos_, dir);
+  }
+  return current_f;
+}
+
 void Calibrator::Calibrate() {
+  double go_len = 0.1;
+  while (go_len > 1e-6) {
+    double current_f = CalcCurrentF();
+    const double step_len = 1.0 / (1 << 10);
+    Eigen::VectorXd grad = Eigen::VectorXd::Zero(6);
 
-  while (true) {
-    Eigen::Vector3d add_trans(0.0, 0.0, 0.0);
-    Eigen::Vector3d add_rot(0.0, 0.0, 0.0);
-
-    for (const auto &pix : visible_pixs_) {
-      Eigen::Vector3d dir = pix(0) * x_axis_ + pix(1) * y_axis_ + scale_ratio_ * z_axis_;
-      dir /= dir.norm();
-      Eigen::Vector3d current_f = octree_->CalcForce(pos_, dir);
-      Eigen::Vector3d tan_f = dir * current_f.dot(dir);
-      Eigen::Vector3d ort_f = current_f - tan_f;
-      // TODO: Hard code here.
-      add_trans += tan_f + ort_f * 1.0;
-      add_rot += dir.cross(ort_f);
+    for (int i = 0; i < 3; i++) {
+      pos_(i) += step_len;
+      grad(i) = (CalcCurrentF() - current_f) / step_len;
+      pos_(i) -= step_len;
     }
 
+    auto current_x_axis = x_axis_;
+    auto current_y_axis = y_axis_;
+    auto current_z_axis = z_axis_;
 
-    double step_len = 1e-3;
+    for (int i = 0; i < 3; i++) {
+      Eigen::Vector3d rot(0.0, 0.0, 0.0);
+      rot(i) = 1.0;
+      Eigen::Matrix3d t;
+      t = Eigen::AngleAxisd(step_len, rot);
+      x_axis_ = t * current_x_axis;
+      y_axis_ = t * current_y_axis;
+      z_axis_ = t * current_z_axis;
+
+      grad(i + 3) = (CalcCurrentF() - current_f) / step_len;
+    }
+    grad *= go_len / grad.norm();
+    pos_ += Eigen::Vector3d(grad(0), grad(1), grad(2));
+    Eigen::Vector3d rot(grad(3), grad(4), grad(5));
+    Eigen::Matrix3d t;
+    t = Eigen::AngleAxisd(step_len, rot);
+    x_axis_ = t * current_x_axis;
+    y_axis_ = t * current_y_axis;
+    x_axis_ /= x_axis_.norm();
+    y_axis_ = y_axis_ - x_axis_ * x_axis_.dot(y_axis_);
+    y_axis_ /= y_axis_.norm();
+    z_axis_ = x_axis_.cross(y_axis_);
+    go_len *= 0.9;
+    std::cout << CalcCurrentF();
   }
   // Update
 }

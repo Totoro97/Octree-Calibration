@@ -15,6 +15,7 @@ public:
 
   void AddToOctree();
   void Calibrate();
+  double CalcCurrentF();
 
   int frame_id_;
   int height_, width_;
