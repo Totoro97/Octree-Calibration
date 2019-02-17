@@ -2,7 +2,6 @@
 // Created by aska on 19-1-29.
 //
 
-#include "Algorithms.h"
 #include "Calibrator.h"
 
 
@@ -28,21 +27,25 @@ Calibrator::Calibrator(const cv::Mat &img_gray, Octree* octree, int frame_id) :
 }
 
 void Calibrator::Calibrate() {
-  Eigen::Matrix3d t;
-  Eigen::Vector3d add_trans(0.0, 0.0, 0.0);
-  Eigen::Vector3d add_rot(0.0, 0.0, 0.0);
 
-  for (const auto &pix : visible_pixs_) {
-    Eigen::Vector3d dir = pix(0) * x_axis_ + pix(1) * y_axis_ + scale_ratio_ * z_axis_;
-    dir /= dir.norm();
-    Eigen::Vector3d current_f = octree_->CalcForce(pos_, dir);
-    Eigen::Vector3d tan_f = dir * current_f.dot(dir);
-    Eigen::Vector3d ort_f = current_f - tan_f;
-    // TODO: Hard code here.
-    add_trans += tan_f + ort_f * 1.0;
-    add_rot += dir.cross(ort_f);
+  while (true) {
+    Eigen::Vector3d add_trans(0.0, 0.0, 0.0);
+    Eigen::Vector3d add_rot(0.0, 0.0, 0.0);
+
+    for (const auto &pix : visible_pixs_) {
+      Eigen::Vector3d dir = pix(0) * x_axis_ + pix(1) * y_axis_ + scale_ratio_ * z_axis_;
+      dir /= dir.norm();
+      Eigen::Vector3d current_f = octree_->CalcForce(pos_, dir);
+      Eigen::Vector3d tan_f = dir * current_f.dot(dir);
+      Eigen::Vector3d ort_f = current_f - tan_f;
+      // TODO: Hard code here.
+      add_trans += tan_f + ort_f * 1.0;
+      add_rot += dir.cross(ort_f);
+    }
+
+
+    double step_len = 1e-3;
   }
-
-  // Updata
+  // Update
 }
 
