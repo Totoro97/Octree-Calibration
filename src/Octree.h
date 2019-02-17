@@ -15,7 +15,8 @@ public:
   }
 
   bool Intersect(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir);
-  Eigen::Vector3d CalcSingleForce(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir, double fineness);
+  double ToF(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir);
+  double CalcSingleForce(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir, double fineness);
 
   Eigen::Vector3d base_;
   Eigen::Vector3d centroid_;
@@ -27,8 +28,8 @@ public:
 class Octree {
 public:
   Octree(Eigen::Vector3d o, double r, double fineness);
-  Eigen::Vector3d CalcForce(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir);
-  Eigen::Vector3d CalcForce(TreeNode *node);
+  double CalcForce(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir);
+  double CalcForce(TreeNode *node);
 
   Eigen::Vector3d o_;
   Eigen::Vector3d ray_pos_, ray_dir_;

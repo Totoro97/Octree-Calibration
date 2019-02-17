@@ -2,7 +2,7 @@
 #include "Thinning.h"
 
 GlobalCalibrator::GlobalCalibrator(std::string dir_name, int num_frame): num_frame_(num_frame) {
-  octree_ = new Octree();
+  octree_ = new Octree(Eigen::Vector3d(0.0, 0.0, 0.0), 3.0, 0.05);
   for (int i = 0; i < num_frame; i++) {
     auto img = cv::imread(dir_name + "/" + std::to_string(i) + ".png");
     cv::Mat img_gray(img.rows, img.cols, CV_8UC1);

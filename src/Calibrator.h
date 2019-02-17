@@ -13,7 +13,7 @@ public:
   ~Calibrator() {
   }
 
-  void AddToOctree();
+  //void AddToOctree();
   void Calibrate();
   double CalcCurrentF();
 

@@ -7,7 +7,7 @@
 
 // TreeNode -------------------------------------------------------------------------------
 
-bool TreeNode::Intersect(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir) {
+double TreeNode::ToF(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir) {
   double min_t[3], max_t[3];
   // TODO: Hard code here.
   const double eps = 1e-8;
@@ -18,7 +18,7 @@ bool TreeNode::Intersect(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir)
         min_t[i] = -inf;
         max_t[i] = inf;
       } else {
-        return false;
+        return -eps;
       }
     }
     else {
@@ -26,16 +26,19 @@ bool TreeNode::Intersect(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir)
       max_t[i] = min_t[i] + d_ / dir(i);
     }
   }
-  return std::max(std::max(min_t[0], min_t[1]), min_t[2]) < std::min(std::min(max_t[0], max_t[1]), max_t[2]);
+  return std::min(std::min(max_t[0], max_t[1]), max_t[2]) - std::max(std::max(min_t[0], min_t[1]), min_t[2]);
 }
 
-Eigen::Vector3d TreeNode::CalcSingleForce(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir, double fineness) {
+bool TreeNode::Intersect(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir) {
+  return ToF(pos, dir) > 0.0;
+}
+
+double TreeNode::CalcSingleForce(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir, double fineness) {
   Eigen::Vector3d bias = centroid_ - pos;
   double len = bias.dot(dir);
   Eigen::Vector3d ort_vec = bias - len * dir;
   // TODO: Hard code here;
-  double dis = std::abs(ort_vec.norm() - fineness) / fineness + 1e-2;
-  return ort_vec / (ort_vec.norm() * dis * dis) * num_points_;
+  return 1.0 / (1.0 + std::exp(-ort_vec.norm())) * num_points_;
 }
 
 // Octree ---------------------------------------------------------------------------------
@@ -46,18 +49,19 @@ Octree::Octree(Eigen::Vector3d o, double r, double fineness): o_(o), r_(r), fine
 }
 
 
-Eigen::Vector3d Octree::CalcForce(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir) {
+double Octree::CalcForce(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir) {
   ray_pos_ = pos;
   ray_dir_ = dir;
   return CalcForce(root_) / (double) root_->num_points_;
 }
 
-Eigen::Vector3d Octree::CalcForce(TreeNode *node) {
-  if (!root_->Intersect(ray_pos_, ray_dir_)) {
+double Octree::CalcForce(TreeNode *node) {
+  double tof = root_->ToF(ray_pos_, ray_dir_);
+  if (tof <= 0.0) {
     return root_->CalcSingleForce(ray_pos_, ray_dir_, fineness_);
   }
   else {
-    Eigen::Vector3d ret_force(0.0, 0.0, 0.0);
+    double ret_force = 0.0;
     int idx = -1;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 2; j++) {
