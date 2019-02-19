@@ -39,11 +39,14 @@ bool TreeNode::Intersect(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir)
 }
 
 double TreeNode::CalcSingleForce(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir, double fineness) {
-  Eigen::Vector3d bias = centroid_ - pos;
+  Eigen::Vector3d bias = (centroid_ / (double) num_points_) - pos;
   double len = bias.dot(dir);
   Eigen::Vector3d ort_vec = bias - len * dir;
   // TODO: Hard code here;
-  return 1.0 / (1.0 + std::exp(-ort_vec.norm() / fineness)) * num_points_;
+  // return 1.0 / (1.0 + std::exp(-ort_vec.norm() / fineness));
+  double tmp = d_ / fineness;
+  double density = (double) num_points_ / (tmp * tmp * tmp);
+  return ort_vec.norm() / density;
 }
 
 // Octree ---------------------------------------------------------------------------------
@@ -62,13 +65,11 @@ double Octree::CalcForce(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir)
 
 double Octree::CalcForce(TreeNode *node) {
   double tof = node->ToF(ray_pos_, ray_dir_);
-  if (tof <= 0.0 || node->num_points_ == 0) {
-    // return root_->CalcSingleForce(ray_pos_, ray_dir_, fineness_);
-    return 0;
+  if (tof <= 0.0 || node->num_points_ == 0 || node->d_ < fineness_ + 1e-8) {
+    return root_->CalcSingleForce(ray_pos_, ray_dir_, fineness_);
   }
   else {
-    double tmp = node->d_ / fineness_;
-    double ret_force = (double) node->num_points_ / (tmp * tmp * tmp * tmp);
+    double ret_force = 1e9;
     int idx = -1;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 2; j++) {
@@ -77,7 +78,7 @@ double Octree::CalcForce(TreeNode *node) {
           if (node->sons_[idx] == nullptr) {
             continue;
           }
-          ret_force = std::max(ret_force, CalcForce(node->sons_[idx]));
+          ret_force = std::min(ret_force, CalcForce(node->sons_[idx]));
         }
       }
     }
@@ -100,6 +101,7 @@ void Octree::Add(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir) {
 int Octree::Add(TreeNode *node) {
   if (node->d_  < fineness_ + 1e-9) {
     node->num_points_++;
+    node->centroid_ += node->base_ + Eigen::Vector3d(node->d_, node->d_, node->d_) * 0.5;
     return 1;
   }
   int idx = -1;
@@ -115,7 +117,9 @@ int Octree::Add(TreeNode *node) {
         if (!node->sons_[idx]->Intersect(ray_pos_, ray_dir_)) {
           continue;
         }
+        node->centroid_ -= node->sons_[idx]->centroid_;
         added += Add(node->sons_[idx]);
+        node->centroid_ += node->sons_[idx]->centroid_;
       }
     }
   }

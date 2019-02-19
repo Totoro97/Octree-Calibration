@@ -17,9 +17,10 @@ Calibrator::Calibrator(const cv::Mat &img_gray, Octree* octree, int frame_id) :
   z_axis_ = Eigen::Vector3d(-1.0, 0.0, 0.0);
 
   // TODO: Need Sampling?
+  int cnt = 0;
   for (int i = 0; i < height_; i++) {
     for (int j = 0; j < width_; j++) {
-      if (img_gray_.data[i * width_ + j] == 255) {
+      if (img_gray_.data[i * width_ + j] == 255 && ++cnt % 1 == 0) {
         visible_pixs_.emplace_back(j - width_ * 0.5, i - height_ * 0.5);
       }
     }
@@ -37,12 +38,12 @@ double Calibrator::CalcCurrentF() {
 }
 
 void Calibrator::Calibrate() {
-  double go_len_trans = 0.1;
-  double go_len_rot = 0.01;
+  double go_len_trans = 0.2;
+  double go_len_rot = 0.02;
   double temper = 1.0;
   int iter_counter = 0;
   std::cout << CalcCurrentF() << std::endl;
-  for (; iter_counter < 500;) {
+  for (; iter_counter < 600;) {
     iter_counter++;
     go_len_trans *= 0.995;
     go_len_rot *= 0.995;
@@ -88,7 +89,7 @@ void Calibrator::Calibrate() {
     double new_f = CalcCurrentF();
     std::cout << frame_id_ << " " << iter_counter << " " << go_len_rot << " " << new_f << " " << current_f << std::endl;
     std::cout << "temper = " << temper << std::endl;
-    if (new_f < current_f && Utils::Random() > temper) {
+    if (new_f > current_f && Utils::Random() > temper) {
       pos_ = current_pos;
       x_axis_ = current_x_axis;
       y_axis_ = current_y_axis;
