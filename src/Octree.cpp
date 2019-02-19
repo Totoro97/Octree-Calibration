@@ -3,7 +3,9 @@
 //
 
 #include "Octree.h"
+#include "Utils.h"
 #include <algorithm>
+#include <fstream>
 
 // TreeNode -------------------------------------------------------------------------------
 
@@ -24,6 +26,9 @@ double TreeNode::ToF(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir) {
     else {
       min_t[i] = (base_(i) - pos(i)) / dir(i);
       max_t[i] = min_t[i] + d_ / dir(i);
+      if (min_t[i] > max_t[i]) {
+        std::swap(min_t[i], max_t[i]);
+      }
     }
   }
   return std::min(std::min(max_t[0], max_t[1]), max_t[2]) - std::max(std::max(min_t[0], min_t[1]), min_t[2]);
@@ -56,13 +61,14 @@ double Octree::CalcForce(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir)
 }
 
 double Octree::CalcForce(TreeNode *node) {
-  double tof = root_->ToF(ray_pos_, ray_dir_);
+  double tof = node->ToF(ray_pos_, ray_dir_);
   if (tof <= 0.0 || node->num_points_ == 0) {
     // return root_->CalcSingleForce(ray_pos_, ray_dir_, fineness_);
-    return 1e9;
+    return 0;
   }
   else {
-    double ret_force = node->d_;
+    double tmp = node->d_ / fineness_;
+    double ret_force = (double) node->num_points_ / (tmp * tmp * tmp);
     int idx = -1;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 2; j++) {
@@ -71,7 +77,7 @@ double Octree::CalcForce(TreeNode *node) {
           if (node->sons_[idx] == nullptr) {
             continue;
           }
-          ret_force = std::min(ret_force, CalcForce(node->sons_[idx]));
+          ret_force = std::max(ret_force, CalcForce(node->sons_[idx]));
         }
       }
     }
@@ -83,17 +89,21 @@ void Octree::Add(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir) {
   ray_pos_ = pos;
   ray_dir_ = dir;
   if (!root_->Intersect(ray_pos_, ray_dir_)) {
-    return;
+    std::cout << "In Octree::Add" << std::endl;
+    std::cout << "pos: " << ray_pos_.transpose() << " dir: " << ray_dir_.transpose() << std::endl;
+    std::cout << "fuck" << std::endl;
+    exit(0);
   }
   Add(root_);
 }
 
-void Octree::Add(TreeNode *node) {
-  node->num_points_++;
-  if (node->d_ < fineness_ * 2.0) {
-    return;
+int Octree::Add(TreeNode *node) {
+  if (node->d_  < fineness_ + 1e-9) {
+    node->num_points_++;
+    return 1;
   }
   int idx = -1;
+  int added = 0;
   for (int i = 0; i < 2; i++) {
     for (int j = 0; j < 2; j++) {
       for (int k = 0; k < 2; k++) {
@@ -105,8 +115,59 @@ void Octree::Add(TreeNode *node) {
         if (!node->sons_[idx]->Intersect(ray_pos_, ray_dir_)) {
           continue;
         }
-        Add(node->sons_[idx]);
+        added += Add(node->sons_[idx]);
       }
+    }
+  }
+  node->num_points_ += added;
+  return added;
+}
+
+void Octree::OutputMesh(std::string mesh_path, double fineness, double density) {
+  std::vector<TreeNode *> out_cubes;
+  out_cubes.clear();
+  FindDenseCubes(root_, fineness, density, out_cubes);
+  //out_cubes.push_back(new TreeNode(Eigen::Vector3d(0.0, 0.0, 0.0), Eigen::Vector3d(0.0, 0.0, 0.0), 1.0, 0));
+  //out_cubes.push_back(new TreeNode(Eigen::Vector3d(2.0, 0.0, 0.0), Eigen::Vector3d(0.0, 0.0, 0.0), 1.0, 0));
+  //out_cubes.push_back(new TreeNode(Eigen::Vector3d(0.0, 2.0, 0.0), Eigen::Vector3d(0.0, 0.0, 0.0), 1.0, 0));
+  //out_cubes.push_back(new TreeNode(Eigen::Vector3d(0.0, 0.0, 2.0), Eigen::Vector3d(0.0, 0.0, 0.0), 1.0, 0));
+  std::vector<Trian> trians;
+  for (auto cube : out_cubes) {
+    for (int axis = 0; axis < 3; axis++) {
+      for (int dir = 0; dir < 2; dir++) {
+        Eigen::Vector3d pt(cube->base_);
+        pt += Eigen::Vector3d(cube->d_, cube->d_, cube->d_) * 0.5;
+        pt(axis) += (dir - 0.5) * cube->d_;
+        Eigen::Vector3d vec(cube->base_);
+        vec(axis) = pt(axis);
+        Eigen::Matrix3d t;
+        Eigen::Vector3d rot_vec(pt - (cube->base_ + Eigen::Vector3d(cube->d_, cube->d_, cube->d_) * 0.5));
+        rot_vec /= rot_vec.norm();
+        t = Eigen::AngleAxisd(0.5 * M_PI, rot_vec);
+        for (int i = 0; i < 4; i++) {
+          Eigen::VectorXd new_vec;
+          new_vec = t * (vec - pt) + pt;
+          trians.emplace_back(pt, vec, new_vec, false);
+          vec = new_vec;
+        }
+      }
+    }
+  }
+  Utils::SaveTriansAsPly(mesh_path, trians);
+}
+
+void Octree::FindDenseCubes(TreeNode* node, double fineness, double density, std::vector<TreeNode *> &out_cubes) {
+  if (fineness > node->d_- 1e-8 && fineness <= node->d_ * 2.0) {
+    double tmp = node->d_ / fineness;
+    if (node->num_points_ / (tmp * tmp * tmp) > density) {
+      out_cubes.push_back(node);
+      std::cout << node->num_points_ / (tmp * tmp * tmp) << std::endl;
+    }
+    return;
+  }
+  for (int i = 0; i < 8; i++) {
+    if (node->sons_[i] != nullptr) {
+      FindDenseCubes(node->sons_[i], fineness, density, out_cubes);
     }
   }
 }

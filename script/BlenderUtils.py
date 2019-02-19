@@ -322,4 +322,4 @@ def GeneratePointCloud() :
         ops.transform.resize(value=(0.002, 0.002, 0.002))
 
 GenerateCurveImagesWithManyCameras(64, is_plane=True)
-GetCameraMatrixFromBlender(add_error = True)
+GetCameraMatrixFromBlender(add_error = False)

@@ -2,7 +2,7 @@
 #include "Thinning.h"
 
 GlobalCalibrator::GlobalCalibrator(std::string dir_name, int num_frame): num_frame_(num_frame) {
-  octree_ = new Octree(Eigen::Vector3d(0.0, 0.0, 0.0), 3.0, 0.05);
+  octree_ = new Octree(Eigen::Vector3d(0.0, 0.0, 0.0), 2.0, 0.03125 / 2.0);
   for (int idx = 0; idx < num_frame; idx++) {
     auto img = cv::imread(dir_name + "/" + std::to_string(idx) + ".png");
     cv::Mat img_gray(img.rows, img.cols, CV_8UC1);
@@ -18,6 +18,7 @@ GlobalCalibrator::GlobalCalibrator(std::string dir_name, int num_frame): num_fra
 
     thinning(img_gray, img_gray);
     calibrators_.push_back(new Calibrator(img_gray, octree_, idx));
+    std::cout << "Pix size: " << calibrators_.back()->visible_pixs_.size() << std::endl;
   }
 }
 
@@ -31,6 +32,7 @@ GlobalCalibrator::~GlobalCalibrator() {
 // No depth parameters (Estimate from Octree)
 
 void GlobalCalibrator::Run() {
+  std::srand(173);
   calibrators_[0]->AddToOctree();
   for (auto iter = std::next(calibrators_.begin()); iter != calibrators_.end(); iter++) {
     auto calibrator = *iter;
@@ -38,4 +40,5 @@ void GlobalCalibrator::Run() {
     calibrator->Calibrate();
     calibrator->AddToOctree();
   }
+  octree_->OutputMesh("tmp.ply", 0.03125 / 2.0, 0.999 * 1.0);
 }

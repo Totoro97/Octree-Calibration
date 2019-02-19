@@ -3,7 +3,7 @@
 //
 
 #include "Calibrator.h"
-
+#include "Utils.h"
 
 Calibrator::Calibrator(const cv::Mat &img_gray, Octree* octree, int frame_id) :
   img_gray_(img_gray), octree_(octree), frame_id_(frame_id) {
@@ -38,46 +38,54 @@ double Calibrator::CalcCurrentF() {
 
 void Calibrator::Calibrate() {
   double go_len = 0.1;
-  while (go_len > 1e-6) {
+  int iter_counter = 0;
+  std::cout << CalcCurrentF() << std::endl;
+  for (; go_len > 1e-4; go_len *= 0.995) {
+    iter_counter++;
     double current_f = CalcCurrentF();
-    const double step_len = 1.0 / (1 << 10);
-    Eigen::VectorXd grad = Eigen::VectorXd::Zero(6);
 
-    for (int i = 0; i < 3; i++) {
-      pos_(i) += step_len;
-      grad(i) = (CalcCurrentF() - current_f) / step_len;
-      pos_(i) -= step_len;
-    }
-
+    auto current_pos = pos_;
     auto current_x_axis = x_axis_;
     auto current_y_axis = y_axis_;
     auto current_z_axis = z_axis_;
 
-    for (int i = 0; i < 3; i++) {
-      Eigen::Vector3d rot(0.0, 0.0, 0.0);
-      rot(i) = 1.0;
-      Eigen::Matrix3d t;
-      t = Eigen::AngleAxisd(step_len, rot);
-      x_axis_ = t * current_x_axis;
-      y_axis_ = t * current_y_axis;
-      z_axis_ = t * current_z_axis;
+    Eigen::Vector3d trans(0.0, 0.0, 0.0);
+    Eigen::Vector3d rot(0.0, 0.0, 0.0);
 
-      grad(i + 3) = (CalcCurrentF() - current_f) / step_len;
+    if (iter_counter % 2 == 0) {
+      trans = Eigen::Vector3d(
+        Utils::RandomLR(-go_len, go_len), Utils::RandomLR(-go_len, go_len), Utils::RandomLR(-go_len, go_len));
     }
-    grad *= go_len / grad.norm();
-    pos_ += Eigen::Vector3d(grad(0), grad(1), grad(2));
-    Eigen::Vector3d rot(grad(3), grad(4), grad(5));
+    else {
+      rot = Eigen::Vector3d(
+        Utils::RandomLR(-go_len, go_len), Utils::RandomLR(-go_len, go_len), Utils::RandomLR(-go_len, go_len));
+    }
+
+    pos_ = current_pos + trans;
+
     Eigen::Matrix3d t;
-    t = Eigen::AngleAxisd(step_len, rot);
+    if (rot.norm() > 1e-7) {
+      t = Eigen::AngleAxisd(rot.norm(), rot / rot.norm());
+    }
+    else {
+      t.setIdentity();
+    }
     x_axis_ = t * current_x_axis;
     y_axis_ = t * current_y_axis;
     x_axis_ /= x_axis_.norm();
     y_axis_ = y_axis_ - x_axis_ * x_axis_.dot(y_axis_);
     y_axis_ /= y_axis_.norm();
     z_axis_ = x_axis_.cross(y_axis_);
-    go_len *= 0.9;
-    std::cout << CalcCurrentF() << std::endl;
+    double new_f = CalcCurrentF();
+    std::cout << iter_counter << " " << go_len << " " << new_f << " " << current_f << std::endl;
+    if (new_f < current_f) {
+      pos_ = current_pos;
+      x_axis_ = current_x_axis;
+      y_axis_ = current_y_axis;
+      z_axis_ = current_z_axis;
+    }
   }
+  std::cout << "pos = " << pos_.transpose() << std::endl;
   // Update
 }
 
@@ -88,7 +96,6 @@ void Calibrator::AddToOctree() {
     octree_->Add(pos_, dir);
   }
 }
-
 
 void Calibrator::CopyCamParasFrom(Calibrator *another_calibrator) {
   pos_ = another_calibrator->pos_;

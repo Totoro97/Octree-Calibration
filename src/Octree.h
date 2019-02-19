@@ -4,6 +4,7 @@
 #include <opencv2/opencv.hpp>
 
 #include <cstring>
+#include <string>
 
 class TreeNode {
 public:
@@ -31,8 +32,9 @@ public:
   double CalcForce(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir);
   double CalcForce(TreeNode *node);
   void Add(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir);
-  void Add(TreeNode *node);
-
+  int Add(TreeNode *node);
+  void OutputMesh(std::string mesh_path, double fineness, double density);
+  void FindDenseCubes(TreeNode* node, double fineness, double density, std::vector<TreeNode *> &out_cubes);
   Eigen::Vector3d o_;
   Eigen::Vector3d ray_pos_, ray_dir_;
   double r_, fineness_;
