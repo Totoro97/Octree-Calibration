@@ -21,7 +21,7 @@ public:
   Eigen::Vector3d base_;
   Eigen::Vector3d centroid_;
   double d_;
-  double num_points_;
+  int num_points_;
   TreeNode *sons_[8];
 };
 
@@ -30,6 +30,8 @@ public:
   Octree(Eigen::Vector3d o, double r, double fineness);
   double CalcForce(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir);
   double CalcForce(TreeNode *node);
+  void Add(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir);
+  void Add(TreeNode *node);
 
   Eigen::Vector3d o_;
   Eigen::Vector3d ray_pos_, ray_dir_;

@@ -13,8 +13,9 @@ public:
   ~Calibrator() {
   }
 
-  //void AddToOctree();
+  void AddToOctree();
   void Calibrate();
+  void CopyCamParasFrom(Calibrator *another_calibrator);
   double CalcCurrentF();
 
   int frame_id_;

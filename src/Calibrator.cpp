@@ -81,3 +81,18 @@ void Calibrator::Calibrate() {
   // Update
 }
 
+void Calibrator::AddToOctree() {
+  for (const auto &pix : visible_pixs_) {
+    Eigen::Vector3d dir = pix(0) * x_axis_ + pix(1) * y_axis_ + scale_ratio_ * z_axis_;
+    dir /= dir.norm();
+    octree_->Add(pos_, dir);
+  }
+}
+
+
+void Calibrator::CopyCamParasFrom(Calibrator *another_calibrator) {
+  pos_ = another_calibrator->pos_;
+  x_axis_ = another_calibrator->x_axis_;
+  y_axis_ = another_calibrator->y_axis_;
+  z_axis_ = another_calibrator->z_axis_;
+}

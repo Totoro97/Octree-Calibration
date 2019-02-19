@@ -38,7 +38,7 @@ double TreeNode::CalcSingleForce(const Eigen::Vector3d &pos, const Eigen::Vector
   double len = bias.dot(dir);
   Eigen::Vector3d ort_vec = bias - len * dir;
   // TODO: Hard code here;
-  return 1.0 / (1.0 + std::exp(-ort_vec.norm())) * num_points_;
+  return 1.0 / (1.0 + std::exp(-ort_vec.norm() / fineness)) * num_points_;
 }
 
 // Octree ---------------------------------------------------------------------------------
@@ -57,11 +57,12 @@ double Octree::CalcForce(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir)
 
 double Octree::CalcForce(TreeNode *node) {
   double tof = root_->ToF(ray_pos_, ray_dir_);
-  if (tof <= 0.0) {
-    return root_->CalcSingleForce(ray_pos_, ray_dir_, fineness_);
+  if (tof <= 0.0 || node->num_points_ == 0) {
+    // return root_->CalcSingleForce(ray_pos_, ray_dir_, fineness_);
+    return 1e9;
   }
   else {
-    double ret_force = 0.0;
+    double ret_force = node->d_;
     int idx = -1;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 2; j++) {
@@ -70,7 +71,7 @@ double Octree::CalcForce(TreeNode *node) {
           if (node->sons_[idx] == nullptr) {
             continue;
           }
-          ret_force += CalcForce(node->sons_[idx]);
+          ret_force = std::min(ret_force, CalcForce(node->sons_[idx]));
         }
       }
     }
@@ -78,3 +79,34 @@ double Octree::CalcForce(TreeNode *node) {
   }
 }
 
+void Octree::Add(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir) {
+  ray_pos_ = pos;
+  ray_dir_ = dir;
+  if (!root_->Intersect(ray_pos_, ray_dir_)) {
+    return;
+  }
+  Add(root_);
+}
+
+void Octree::Add(TreeNode *node) {
+  node->num_points_++;
+  if (node->d_ < fineness_ * 2.0) {
+    return;
+  }
+  int idx = -1;
+  for (int i = 0; i < 2; i++) {
+    for (int j = 0; j < 2; j++) {
+      for (int k = 0; k < 2; k++) {
+        ++idx;
+        if (node->sons_[idx] == nullptr) {
+          node->sons_[idx] = new TreeNode(node->base_ + Eigen::Vector3d(i, j, k) * 0.5 * node->d_,
+            Eigen::Vector3d(0.0, 0.0, 0.0), node->d_ * 0.5, 0);
+        }
+        if (!node->sons_[idx]->Intersect(ray_pos_, ray_dir_)) {
+          continue;
+        }
+        Add(node->sons_[idx]);
+      }
+    }
+  }
+}
