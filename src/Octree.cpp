@@ -45,8 +45,9 @@ double TreeNode::CalcSingleForce(const Eigen::Vector3d &pos, const Eigen::Vector
   // TODO: Hard code here;
   // return 1.0 / (1.0 + std::exp(-ort_vec.norm() / fineness));
   double tmp = d_ / fineness;
+  double dis = ort_vec.norm() / fineness;
   double density = (double) num_points_ / (tmp * tmp * tmp);
-  return ort_vec.norm() / density;
+  return density > 1e-9 ? dis / (density * density): 1e10;
 }
 
 // Octree ---------------------------------------------------------------------------------
@@ -66,7 +67,7 @@ double Octree::CalcForce(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir)
 double Octree::CalcForce(TreeNode *node) {
   double tof = node->ToF(ray_pos_, ray_dir_);
   if (tof <= 0.0 || node->num_points_ == 0 || node->d_ < fineness_ + 1e-8) {
-    return root_->CalcSingleForce(ray_pos_, ray_dir_, fineness_);
+    return node->CalcSingleForce(ray_pos_, ray_dir_, fineness_);
   }
   else {
     double ret_force = 1e9;

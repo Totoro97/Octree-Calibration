@@ -8,7 +8,7 @@
 
 class Calibrator {
 public:
-  Calibrator(const cv::Mat &img_gray, Octree* octree, int frame_id = 0);
+  Calibrator(const cv::Mat &img_gray, Octree* octree, int frame_id = 0, double ang = -1.0);
 
   ~Calibrator() {
   }

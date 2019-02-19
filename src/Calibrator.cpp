@@ -5,16 +5,21 @@
 #include "Calibrator.h"
 #include "Utils.h"
 
-Calibrator::Calibrator(const cv::Mat &img_gray, Octree* octree, int frame_id) :
+Calibrator::Calibrator(const cv::Mat &img_gray, Octree* octree, int frame_id, double ang) :
   img_gray_(img_gray), octree_(octree), frame_id_(frame_id) {
   height_ = img_gray.rows;
   width_ = img_gray.cols;
 
   // TODO: Hard code here.
-  pos_ = Eigen::Vector3d(10.0, 0.0, 0.0);
-  x_axis_ = Eigen::Vector3d(0.0, 1.0, 0.0);
-  y_axis_ = Eigen::Vector3d(0.0, 0.0, -1.0);
-  z_axis_ = Eigen::Vector3d(-1.0, 0.0, 0.0);
+  pos_ = Eigen::Vector3d(10.0 * std::cos(ang), 10.0 * std::sin(ang), 0.0) +
+    Eigen::Vector3d(Utils::RandomLR(-0.1, 0.1), Utils::RandomLR(-0.1, 0.1), Utils::RandomLR(-0.1, 0.1));
+  x_axis_ = Eigen::Vector3d(-std::sin(ang), std::cos(ang), 0.0) +
+    Eigen::Vector3d(Utils::RandomLR(-0.1, 0.1), Utils::RandomLR(-0.0, 0.0), Utils::RandomLR(-0.0, 0.0));
+  y_axis_ = Eigen::Vector3d(0.0, 0.0, -1.0) +
+    Eigen::Vector3d(Utils::RandomLR(-0.1, 0.1), Utils::RandomLR(-0.0, 0.0), Utils::RandomLR(-0.0, 0.0));
+  x_axis_ /= x_axis_.norm();
+  y_axis_ /= y_axis_.norm();
+  z_axis_ = x_axis_.cross(y_axis_);
 
   // TODO: Need Sampling?
   int cnt = 0;
@@ -38,12 +43,12 @@ double Calibrator::CalcCurrentF() {
 }
 
 void Calibrator::Calibrate() {
-  double go_len_trans = 0.2;
-  double go_len_rot = 0.02;
-  double temper = 1.0;
+  double go_len_trans = 0.1;
+  double go_len_rot = 0.01;
+  double temper = 0.0;
   int iter_counter = 0;
   std::cout << CalcCurrentF() << std::endl;
-  for (; iter_counter < 600;) {
+  for (; iter_counter < 200;) {
     iter_counter++;
     go_len_trans *= 0.995;
     go_len_rot *= 0.995;

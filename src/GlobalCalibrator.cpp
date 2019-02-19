@@ -17,7 +17,7 @@ GlobalCalibrator::GlobalCalibrator(std::string dir_name, int num_frame): num_fra
     }
 
     thinning(img_gray, img_gray);
-    calibrators_.push_back(new Calibrator(img_gray, octree_, idx));
+    calibrators_.push_back(new Calibrator(img_gray, octree_, idx, (double) idx * M_PI * 2.0 / 16.0));
     std::cout << "Pix size: " << calibrators_.back()->visible_pixs_.size() << std::endl;
   }
 }
@@ -36,9 +36,9 @@ void GlobalCalibrator::Run() {
   calibrators_[0]->AddToOctree();
   for (auto iter = std::next(calibrators_.begin()); iter != calibrators_.end(); iter++) {
     auto calibrator = *iter;
-    calibrator->CopyCamParasFrom(*std::prev(iter));
+    // calibrator->CopyCamParasFrom(*std::prev(iter));
     calibrator->Calibrate();
     calibrator->AddToOctree();
   }
-  octree_->OutputMesh("tmp.ply", 0.03125 / 2.0, 0.999 * 1.0);
+  octree_->OutputMesh("tmp.ply", 0.03125 / 2.0, 0.999 * 8.0);
 }
