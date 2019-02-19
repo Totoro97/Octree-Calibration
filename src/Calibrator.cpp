@@ -76,7 +76,7 @@ void Calibrator::Calibrate() {
     y_axis_ /= y_axis_.norm();
     z_axis_ = x_axis_.cross(y_axis_);
     go_len *= 0.9;
-    std::cout << CalcCurrentF();
+    std::cout << CalcCurrentF() << std::endl;
   }
   // Update
 }

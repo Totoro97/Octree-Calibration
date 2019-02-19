@@ -3,8 +3,8 @@
 
 GlobalCalibrator::GlobalCalibrator(std::string dir_name, int num_frame): num_frame_(num_frame) {
   octree_ = new Octree(Eigen::Vector3d(0.0, 0.0, 0.0), 3.0, 0.05);
-  for (int i = 0; i < num_frame; i++) {
-    auto img = cv::imread(dir_name + "/" + std::to_string(i) + ".png");
+  for (int idx = 0; idx < num_frame; idx++) {
+    auto img = cv::imread(dir_name + "/" + std::to_string(idx) + ".png");
     cv::Mat img_gray(img.rows, img.cols, CV_8UC1);
     for (int i = 0; i < img.rows * img.cols; i++) {
       if (img.data[i * 3] == img.data[0] &&
@@ -17,7 +17,7 @@ GlobalCalibrator::GlobalCalibrator(std::string dir_name, int num_frame): num_fra
     }
 
     thinning(img_gray, img_gray);
-    calibrators_.push_back(new Calibrator(img_gray, octree_, i));
+    calibrators_.push_back(new Calibrator(img_gray, octree_, idx));
   }
 }
 

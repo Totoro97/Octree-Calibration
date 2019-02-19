@@ -24,5 +24,5 @@ public:
   Octree* octree_;
   std::vector<Eigen::Vector2d> visible_pixs_;
   Eigen::Vector3d pos_, x_axis_, y_axis_, z_axis_;
-  double scale_ratio_ = 1080;
+  double scale_ratio_ = 1050.0;
 };

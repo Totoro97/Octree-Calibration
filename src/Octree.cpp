@@ -52,7 +52,7 @@ Octree::Octree(Eigen::Vector3d o, double r, double fineness): o_(o), r_(r), fine
 double Octree::CalcForce(const Eigen::Vector3d &pos, const Eigen::Vector3d &dir) {
   ray_pos_ = pos;
   ray_dir_ = dir;
-  return CalcForce(root_) / (double) root_->num_points_;
+  return CalcForce(root_);
 }
 
 double Octree::CalcForce(TreeNode *node) {
