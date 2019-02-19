@@ -68,7 +68,7 @@ double Octree::CalcForce(TreeNode *node) {
   }
   else {
     double tmp = node->d_ / fineness_;
-    double ret_force = (double) node->num_points_ / (tmp * tmp * tmp);
+    double ret_force = (double) node->num_points_ / (tmp * tmp * tmp * tmp);
     int idx = -1;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 2; j++) {
@@ -161,7 +161,7 @@ void Octree::FindDenseCubes(TreeNode* node, double fineness, double density, std
     double tmp = node->d_ / fineness;
     if (node->num_points_ / (tmp * tmp * tmp) > density) {
       out_cubes.push_back(node);
-      std::cout << node->num_points_ / (tmp * tmp * tmp) << std::endl;
+      // std::cout << node->num_points_ / (tmp * tmp * tmp) << std::endl;
     }
     return;
   }

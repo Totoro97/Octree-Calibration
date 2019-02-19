@@ -37,11 +37,16 @@ double Calibrator::CalcCurrentF() {
 }
 
 void Calibrator::Calibrate() {
-  double go_len = 0.1;
+  double go_len_trans = 0.1;
+  double go_len_rot = 0.01;
+  double temper = 1.0;
   int iter_counter = 0;
   std::cout << CalcCurrentF() << std::endl;
-  for (; go_len > 1e-4; go_len *= 0.995) {
+  for (; iter_counter < 500;) {
     iter_counter++;
+    go_len_trans *= 0.995;
+    go_len_rot *= 0.995;
+    temper *= 0.985;
     double current_f = CalcCurrentF();
 
     auto current_pos = pos_;
@@ -54,11 +59,15 @@ void Calibrator::Calibrate() {
 
     if (iter_counter % 2 == 0) {
       trans = Eigen::Vector3d(
-        Utils::RandomLR(-go_len, go_len), Utils::RandomLR(-go_len, go_len), Utils::RandomLR(-go_len, go_len));
+        Utils::RandomLR(-go_len_trans, go_len_trans),
+        Utils::RandomLR(-go_len_trans, go_len_trans),
+        Utils::RandomLR(-go_len_trans, go_len_trans));
     }
     else {
       rot = Eigen::Vector3d(
-        Utils::RandomLR(-go_len, go_len), Utils::RandomLR(-go_len, go_len), Utils::RandomLR(-go_len, go_len));
+        Utils::RandomLR(-go_len_rot, go_len_rot),
+        Utils::RandomLR(-go_len_rot, go_len_rot),
+        Utils::RandomLR(-go_len_rot, go_len_rot));
     }
 
     pos_ = current_pos + trans;
@@ -77,8 +86,9 @@ void Calibrator::Calibrate() {
     y_axis_ /= y_axis_.norm();
     z_axis_ = x_axis_.cross(y_axis_);
     double new_f = CalcCurrentF();
-    std::cout << iter_counter << " " << go_len << " " << new_f << " " << current_f << std::endl;
-    if (new_f < current_f) {
+    std::cout << frame_id_ << " " << iter_counter << " " << go_len_rot << " " << new_f << " " << current_f << std::endl;
+    std::cout << "temper = " << temper << std::endl;
+    if (new_f < current_f && Utils::Random() > temper) {
       pos_ = current_pos;
       x_axis_ = current_x_axis;
       y_axis_ = current_y_axis;
